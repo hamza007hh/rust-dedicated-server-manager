@@ -1,0 +1,6 @@
+*.json
+*.log
+*.txt
+target/
+dist/
+node_modules/

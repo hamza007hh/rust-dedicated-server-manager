@@ -1,0 +1,40 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="rust_steel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#252a34" />
+      <stop offset="50%" stopColor="#181b22" />
+      <stop offset="100%" stopColor="#0f1116" />
+    </linearGradient>
+    <linearGradient id="rust_ember" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#ff7a45" />
+      <stop offset="45%" stopColor="#e05338" />
+      <stop offset="100%" stopColor="#ce422b" />
+    </linearGradient>
+    <radialGradient id="rust_glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stopColor="#e05338" stopOpacity="0.4" />
+      <stop offset="100%" stopColor="#e05338" stopOpacity="0" />
+    </radialGradient>
+  </defs>
+
+  <circle cx="50" cy="50" r="48" fill="url(#rust_glow)" />
+
+  <polygon
+    points="50,4 90,26 90,74 50,96 10,74 10,26"
+    fill="url(#rust_steel)"
+    stroke="#e05338"
+    strokeWidth="3"
+    strokeLinejoin="round"
+  />
+
+  <circle cx="50" cy="11" r="2.5" fill="#e05338" />
+  <circle cx="83" cy="29" r="2.5" fill="#e05338" />
+  <circle cx="83" cy="71" r="2.5" fill="#e05338" />
+  <circle cx="50" cy="89" r="2.5" fill="#e05338" />
+  <circle cx="17" cy="71" r="2.5" fill="#e05338" />
+  <circle cx="17" cy="29" r="2.5" fill="#e05338" />
+
+  <rect x="34" y="28" width="9" height="44" rx="1.5" fill="url(#rust_ember)" />
+  <path d="M43 28 H 58 C 65 28 69 32 69 39 C 69 46 65 50 58 50 H 43 Z" fill="url(#rust_ember)" />
+  <rect x="43" y="35.5" width="14" height="7" rx="1" fill="#181b22" />
+  <path d="M51 49 L 66 72 H 56 L 43 51 Z" fill="url(#rust_ember)" />
+</svg>

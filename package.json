@@ -1,0 +1,30 @@
+{
+  "name": "epic-rust-server-launcher",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "update-launcher": "cmd /c \"taskkill /f /im EpicRust.exe /im EpicRustServerLauncher.exe 2>nul & exit 0\" && npm run tauri build -- --no-bundle && cmd /c \"copy /y src-tauri\\target\\x86_64-pc-windows-gnullvm\\release\\epic-rust-server-launcher-ui.exe EpicRust.exe & copy /y src-tauri\\target\\x86_64-pc-windows-gnullvm\\release\\epic-rust-server-launcher-ui.exe EpicRustServerLauncher.exe\""
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "lucide-react": "^0.469.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
