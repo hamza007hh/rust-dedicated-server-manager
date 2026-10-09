@@ -32,6 +32,7 @@ launcher_profiles.json
 # Local compiled binaries in root (users download releases from GitHub Releases)
 /EpicRust.exe
 /EpicRustServerLauncher.exe
+*.zip
 
 # Local Cargo overrides (e.g. machine-specific toolchains or LLVM/MinGW paths)
 /.cargo/config.toml

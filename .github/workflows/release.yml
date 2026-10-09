@@ -43,9 +43,17 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release-dist
-          Copy-Item src-tauri\target\release\epic-rust-server-launcher-ui.exe release-dist\EpicRust.exe
-          Copy-Item steam_api64.dll release-dist\steam_api64.dll
-          Compress-Archive -Path release-dist\* -DestinationPath EpicRust-Windows-x64.zip
+          $bin = Get-ChildItem -Path src-tauri\target -Recurse -Filter "epic-rust-server-launcher-ui.exe" | Where-Object { $_.FullName -match "release" } | Select-Object -First 1
+          if ($bin) {
+            Copy-Item $bin.FullName release-dist\EpicRust.exe
+          }
+          if (Test-Path steam_api64.dll) {
+            Copy-Item steam_api64.dll release-dist\steam_api64.dll
+          }
+          if (Test-Path WebView2Loader.dll) {
+            Copy-Item WebView2Loader.dll release-dist\WebView2Loader.dll
+          }
+          tar.exe -a -c -f EpicRust-Windows-x64.zip -C release-dist .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
