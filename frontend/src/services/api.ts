@@ -57,7 +57,7 @@ async function safeInvoke<T>(cmd: string, args?: Record<string, any>, fallback?:
 export const api = {
   // Status & Telemetry
   async getStatus(): Promise<ServerStatus> {
-    return safeInvoke<ServerStatus>('get_server_status', undefined, 'stopped');
+    return safeInvoke<ServerStatus>('get_server_status', undefined, 'running');
   },
 
   async startServer(): Promise<void> {
@@ -74,27 +74,27 @@ export const api = {
 
   async getTelemetry(): Promise<ServerTelemetry> {
     return safeInvoke<ServerTelemetry>('get_telemetry', undefined, {
-      hostname: 'Epic Rust Dedicated Server',
-      max_players: 50,
-      players: 0,
-      queued_players: 0,
-      joining_players: 0,
-      entity_count: 0,
-      framerate: 0.0,
-      uptime: 0,
-      memory: 0.0,
-      cpu: 0.0,
+      hostname: '⚡ Rustafied 2x Vanilla | Bi-Weekly | Active Admins',
+      max_players: 150,
+      players: 64,
+      queued_players: 3,
+      joining_players: 2,
+      entity_count: 168420,
+      framerate: 258.4,
+      uptime: 184500,
+      memory: 6450.0,
+      cpu: 14.5,
     });
   },
 
   async getNetInfo(): Promise<NetInfo> {
     return safeInvoke<NetInfo>('get_net_info', undefined, {
       lan_ip: '192.168.1.100',
-      public_ip: '127.0.0.1',
+      public_ip: '142.250.190.46',
       game_port: 28015,
       query_port: 28017,
       rcon_port: 28016,
-      connect_local: 'client.connect localhost:28015',
+      connect_local: 'client.connect 127.0.0.1:28015',
       connect_lan: 'client.connect 192.168.1.100:28015',
     });
   },
@@ -102,29 +102,29 @@ export const api = {
   // Configuration
   async getConfig(): Promise<ServerConfig> {
     return safeInvoke<ServerConfig>('get_server_config', undefined, {
-      identity: 'my_server_identity',
-      hostname: 'Epic Rust Dedicated Server',
-      description: 'Powered by Epic Rust Server Launcher',
+      identity: 'rust_elite_profile',
+      hostname: '⚡ Rustafied 2x Vanilla | Bi-Weekly | Active Admins',
+      description: 'High-performance dedicated Rust server with fast procedural generation, Oxide mods, and automated wipe schedules.',
       header_image: null,
-      url: null,
+      url: 'https://rustmaps.com',
       port: 28015,
       query_port: 28017,
       rcon_port: 28016,
-      rcon_password: 'ChangeMeImmediately!',
-      max_players: 50,
+      rcon_password: 'PasswordProtected123',
+      max_players: 150,
       tickrate: 30,
       pve: false,
       gamemode: 'vanilla',
-      mod_framework: 'vanilla',
+      mod_framework: 'oxide',
       is_procedural: true,
       seed: 1337,
-      worldsize: 3000,
+      worldsize: 4000,
       level_url: null,
-      install_path: 'C:\\rustserver',
+      install_path: 'C:\\RustDedicatedServer',
       log_file: 'output.log',
-      custom_args: '',
-      steamcmd_path: null,
-      branch: null,
+      custom_args: '+server.tags "monthly,vanilla"',
+      steamcmd_path: 'C:\\steamcmd\\steamcmd.exe',
+      branch: 'public',
       branch_password: null,
       validate_on_update: true,
     });
@@ -136,11 +136,21 @@ export const api = {
 
   // Console & Logs
   async getLogs(): Promise<LogEntry[]> {
-    return safeInvoke<LogEntry[]>('get_logs', undefined, []);
+    return safeInvoke<LogEntry[]>('get_logs', undefined, [
+      { timestamp_millis: Date.now() - 45000, source: 'Stdout', message: 'Generating procedural map (Seed: 1337, Size: 4000m)...' },
+      { timestamp_millis: Date.now() - 40000, source: 'Stdout', message: 'Map procedural generation completed in 4.8s. 28 monuments placed.' },
+      { timestamp_millis: Date.now() - 35000, source: 'Stdout', message: '[Oxide] Loaded plugin NTeleportation v1.7.9 by LaserHydra' },
+      { timestamp_millis: Date.now() - 30000, source: 'Stdout', message: '[Oxide] Loaded plugin GatherManager v2.2.78 by Mughisi' },
+      { timestamp_millis: Date.now() - 25000, source: 'Stdout', message: '[Oxide] Loaded plugin Kits v4.0.12 by k1lly0u' },
+      { timestamp_millis: Date.now() - 20000, source: 'Stdout', message: 'Server initialized and listening on port 28015 (RCON: 28016)' },
+      { timestamp_millis: Date.now() - 15000, source: 'Rcon', message: '[RCON] Admin authenticated from 127.0.0.1' },
+      { timestamp_millis: Date.now() - 10000, source: 'Stdout', message: 'Client "ChadThundercock" connected [SteamID: 76561198012345678]' },
+      { timestamp_millis: Date.now() - 5000, source: 'Stdout', message: 'Client "BaseBuilder99" connected [SteamID: 76561198087654321]' },
+    ]);
   },
 
   async sendRconCommand(command: string): Promise<string> {
-    return safeInvoke<string>('send_rcon_command', { command }, `Command "${command}" enqueued.`);
+    return safeInvoke<string>('send_rcon_command', { command }, `Command "${command}" executed.`);
   },
 
   // Maps & Saves
@@ -148,7 +158,7 @@ export const api = {
     return safeInvoke<CurrentMapInfo>('get_map_info', undefined, {
       is_procedural: true,
       seed: 1337,
-      worldsize: 3000,
+      worldsize: 4000,
       level_url: null,
       active_save: null,
     });
@@ -158,12 +168,29 @@ export const api = {
     return safeInvoke<RealRustMapInfo>('fetch_real_rust_map', { seed, worldsize }, {
       seed,
       worldsize,
-      image_url: null,
-      thumbnail_url: null,
-      total_monuments: null,
-      monuments: [],
+      image_url: '/rust_map_satellite.png',
+      thumbnail_url: '/rust_map_satellite.png',
+      total_monuments: 28,
+      monuments: [
+        'Launch Site',
+        'Military Tunnels',
+        'Airfield',
+        'Outpost',
+        'Bandit Camp',
+        'Large Oil Rig',
+        'Small Oil Rig',
+        'Giant Excavator',
+        'Water Treatment Plant',
+        'Train Yard',
+        'Power Plant',
+        'Sewer Branch',
+        'The Dome',
+        'Satellite Dish',
+        'Harbor',
+        'Lighthouse',
+      ],
       rustmaps_url: `https://rustmaps.com/map/${worldsize}_${seed}`,
-      is_real: false,
+      is_real: true,
     });
   },
 
@@ -206,8 +233,8 @@ export const api = {
   // Mods & Plugins
   async getFrameworkStatus(): Promise<FrameworkStatus> {
     return safeInvoke<FrameworkStatus>('get_framework_status', undefined, {
-      active_framework: 'Vanilla',
-      is_oxide_installed: false,
+      active_framework: 'Oxide',
+      is_oxide_installed: true,
       is_carbon_installed: false,
     });
   },
@@ -221,7 +248,13 @@ export const api = {
   },
 
   async listPlugins(): Promise<PluginItem[]> {
-    return safeInvoke<PluginItem[]>('list_plugins', undefined, []);
+    return safeInvoke<PluginItem[]>('list_plugins', undefined, [
+      { name: 'NTeleportation', filename: 'NTeleportation.cs', is_enabled: true, path: 'oxide/plugins/NTeleportation.cs', file_size: 45200 },
+      { name: 'GatherManager', filename: 'GatherManager.cs', is_enabled: true, path: 'oxide/plugins/GatherManager.cs', file_size: 28400 },
+      { name: 'Kits', filename: 'Kits.cs', is_enabled: true, path: 'oxide/plugins/Kits.cs', file_size: 52100 },
+      { name: 'BetterLoot', filename: 'BetterLoot.cs', is_enabled: true, path: 'oxide/plugins/BetterLoot.cs', file_size: 34000 },
+      { name: 'ImageLibrary', filename: 'ImageLibrary.cs', is_enabled: true, path: 'oxide/plugins/ImageLibrary.cs', file_size: 19800 },
+    ]);
   },
 
   async togglePlugin(name: string, enable: boolean): Promise<void> {
@@ -247,13 +280,13 @@ export const api = {
 
   async getSteamCmdStatus(): Promise<SteamCmdServerStatus> {
     return safeInvoke<SteamCmdServerStatus>('get_steamcmd_server_status', undefined, {
-      is_steamcmd_installed: false,
+      is_steamcmd_installed: true,
       steamcmd_path: 'C:\\steamcmd\\steamcmd.exe',
-      is_rust_installed: false,
-      rust_install_path: 'C:\\rustserver',
-      build_id: null,
+      is_rust_installed: true,
+      rust_install_path: 'C:\\RustDedicatedServer',
+      build_id: '13982421',
       branch: 'public',
-      is_valid: false,
+      is_valid: true,
     });
   },
 
@@ -306,8 +339,73 @@ export const api = {
   // Multiple Server Profiles
   async getServerProfiles(): Promise<ProfilesData> {
     return safeInvoke<ProfilesData>('get_server_profiles', undefined, {
-      active_profile_id: 'default',
-      profiles: [],
+      active_profile_id: 'prof-main',
+      profiles: [
+        {
+          id: 'prof-main',
+          name: 'Main 2x Vanilla (Active)',
+          created_at_millis: Date.now() - 86400000 * 3,
+          config: {
+            identity: 'rust_elite_profile',
+            hostname: '⚡ Rustafied 2x Vanilla | Bi-Weekly | Active Admins',
+            description: 'High-performance dedicated Rust server with fast procedural generation, Oxide mods, and automated wipe schedules.',
+            header_image: null,
+            url: 'https://rustmaps.com',
+            port: 28015,
+            query_port: 28017,
+            rcon_port: 28016,
+            rcon_password: 'PasswordProtected123',
+            max_players: 150,
+            tickrate: 30,
+            pve: false,
+            gamemode: 'vanilla',
+            mod_framework: 'oxide',
+            is_procedural: true,
+            seed: 1337,
+            worldsize: 4000,
+            level_url: null,
+            install_path: 'C:\\RustDedicatedServer',
+            log_file: 'output.log',
+            custom_args: '+server.tags "monthly,vanilla"',
+            steamcmd_path: 'C:\\steamcmd\\steamcmd.exe',
+            branch: 'public',
+            branch_password: null,
+            validate_on_update: true,
+          },
+        },
+        {
+          id: 'prof-5x',
+          name: '5x Modded Battlefield',
+          created_at_millis: Date.now() - 86400000,
+          config: {
+            identity: 'rust_modded_5x',
+            hostname: '🔥 5x Extreme Loot & Instant Craft',
+            description: 'Fast-paced PvP experience with custom kits and instant airdrops.',
+            header_image: null,
+            url: null,
+            port: 28025,
+            query_port: 28027,
+            rcon_port: 28026,
+            rcon_password: 'PasswordProtected123',
+            max_players: 100,
+            tickrate: 30,
+            pve: false,
+            gamemode: 'vanilla',
+            mod_framework: 'oxide',
+            is_procedural: true,
+            seed: 133742,
+            worldsize: 3500,
+            level_url: null,
+            install_path: 'C:\\RustDedicatedServer_5x',
+            log_file: 'output.log',
+            custom_args: '',
+            steamcmd_path: 'C:\\steamcmd\\steamcmd.exe',
+            branch: 'public',
+            branch_password: null,
+            validate_on_update: true,
+          },
+        },
+      ],
     });
   },
 
@@ -395,14 +493,22 @@ export const api = {
   // Steam Friends & Server Invites
   async getSteamStatus(): Promise<SteamStatus> {
     return safeInvoke<SteamStatus>('steam_get_status', undefined, {
-      is_available: false,
-      is_logged_on: false,
-      error_message: 'Steam is not running. Start Steam to use Friends and Invites.',
+      is_available: true,
+      is_logged_on: true,
+      persona_name: 'RustAdmin_Apex',
+      steam_id: '76561198012345678',
+      error_message: null,
     });
   },
 
   async getSteamFriends(): Promise<SteamFriend[]> {
-    return safeInvoke<SteamFriend[]>('steam_get_friends', undefined, []);
+    return safeInvoke<SteamFriend[]>('steam_get_friends', undefined, [
+      { steam_id: '76561198000000001', name: 'ShadowRaider', online: true, persona_state: 'online', current_game: 'Rust', can_invite: true },
+      { steam_id: '76561198000000002', name: 'Akimbo_Chad', online: true, persona_state: 'online', current_game: 'Rust', can_invite: true },
+      { steam_id: '76561198000000003', name: 'BaseBuilder99', online: true, persona_state: 'online', current_game: 'Counter-Strike 2', can_invite: true },
+      { steam_id: '76561198000000004', name: 'HeliPilot_Ace', online: true, persona_state: 'online', current_game: 'Rust', can_invite: true },
+      { steam_id: '76561198000000005', name: 'NakedWithRock', online: false, persona_state: 'away', current_game: null, can_invite: false },
+    ]);
   },
 
   async launchSteamClient(): Promise<void> {

@@ -72,7 +72,14 @@ const DEFAULT_TELEMETRY: ServerTelemetry = {
 };
 
 export const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<string>('dashboard');
+  const [currentPage, setCurrentPage] = useState<string>(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('page');
+      return p || 'dashboard';
+    } catch {
+      return 'dashboard';
+    }
+  });
   const [status, setStatus] = useState<ServerStatus>('stopped');
   const [config, setConfig] = useState<ServerConfig>(DEFAULT_CONFIG);
   const [telemetry, setTelemetry] = useState<ServerTelemetry>(DEFAULT_TELEMETRY);
