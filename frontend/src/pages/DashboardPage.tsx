@@ -27,6 +27,7 @@ import {
   Trash2,
   X,
   ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
 import { StatCard } from '../components/StatCard';
 import { MapPreview } from '../components/MapPreview';
@@ -38,6 +39,7 @@ import {
   NetInfo,
   LogEntry,
   SteamCmdServerStatus,
+  SteamCmdProgress,
   ProfilesData,
 } from '../types/server';
 import heroBannerImg from '../assets/rust_hero.jpg';
@@ -63,6 +65,9 @@ interface DashboardPageProps {
   steamPersonaName?: string | null;
   onRenameProfile: (id: string, newName: string) => Promise<void>;
   onDeleteProfile: (id: string) => Promise<void>;
+  isDownloadingServer?: boolean;
+  downloadProgress?: SteamCmdProgress | null;
+  onInstallServer?: (targetPath?: string) => void;
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
@@ -86,6 +91,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   steamPersonaName,
   onRenameProfile,
   onDeleteProfile,
+  isDownloadingServer = false,
+  downloadProgress = null,
+  onInstallServer,
 }) => {
   const [copiedConnect, setCopiedConnect] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -216,47 +224,130 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
         </div>
 
-        {/* Rust Server Installation Warning Banner */}
-        {(!steamStatus?.is_rust_installed || !steamStatus?.is_valid) && (
-          <div className="bg-[#171412] border border-amber-500/30 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-            <div className="flex items-start space-x-3">
-              <div className="p-2.5 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0 mt-0.5">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-amber-200 uppercase tracking-wide font-mono">
-                  Rust Dedicated Server Binaries Missing
+        {/* Rust Server Installation Warning Banner / Active Download Banner */}
+        {((!steamStatus?.is_rust_installed || !steamStatus?.is_valid) || isDownloadingServer || downloadProgress) && (
+          <div className="bg-[#171412] border border-amber-500/30 rounded-xl p-4 shadow-sm space-y-3">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-start space-x-3">
+                <div
+                  className={`p-2.5 rounded-lg border shrink-0 mt-0.5 ${
+                    isDownloadingServer
+                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse'
+                      : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                  }`}
+                >
+                  {isDownloadingServer ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4" />
+                  )}
                 </div>
-                <p className="text-xs text-neutral-300 mt-0.5 max-w-2xl leading-relaxed">
-                  RustDedicated.exe was not detected at <code className="text-amber-300 bg-black/40 px-1.5 py-0.5 rounded border border-white/10 font-mono">{config?.install_path || 'No path configured'}</code>.
-                  Pick an existing server directory or install automatically via SteamCMD in Settings.
-                </p>
+                <div>
+                  <div className="text-xs font-bold text-amber-200 uppercase tracking-wide font-mono flex items-center space-x-2">
+                    <span>
+                      {isDownloadingServer
+                        ? 'Downloading Rust Dedicated Server'
+                        : 'Rust Dedicated Server Binaries Missing'}
+                    </span>
+                    {isDownloadingServer && (
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 font-mono border border-amber-500/30">
+                        {downloadProgress?.stage || 'SteamCMD In Progress'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-300 mt-0.5 max-w-2xl leading-relaxed">
+                    {isDownloadingServer ? (
+                      downloadProgress?.raw_message ||
+                      'SteamCMD is downloading and setting up Rust Dedicated Server files. You can safely stay on this tab or navigate around.'
+                    ) : (
+                      <>
+                        RustDedicated.exe was not detected at{' '}
+                        <code className="text-amber-300 bg-black/40 px-1.5 py-0.5 rounded border border-white/10 font-mono">
+                          {config?.install_path || 'No path configured'}
+                        </code>
+                        . Pick an existing server directory or click Install Server to download automatically via SteamCMD.
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center flex-wrap gap-2 shrink-0">
+                {!isDownloadingServer && (
+                  <>
+                    <button
+                      onClick={onBrowseFolder}
+                      className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-neutral-200 text-xs font-medium transition-colors flex items-center space-x-1.5"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-orange-400" />
+                      <span>Choose Folder</span>
+                    </button>
+                    <button
+                      onClick={onAutoDetect}
+                      className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-neutral-200 text-xs font-medium transition-colors flex items-center space-x-1.5"
+                    >
+                      <Compass className="w-3.5 h-3.5 text-orange-400" />
+                      <span>Auto-Detect</span>
+                    </button>
+                  </>
+                )}
+                <button
+                  disabled={isDownloadingServer}
+                  onClick={() => {
+                    if (onInstallServer) {
+                      onInstallServer(config?.install_path);
+                    } else {
+                      onNavigate('settings');
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-white text-xs font-semibold shadow-sm transition-colors flex items-center space-x-1.5 ${
+                    isDownloadingServer
+                      ? 'bg-amber-600/60 cursor-not-allowed opacity-90'
+                      : 'bg-[#ce422b] hover:bg-[#b03420]'
+                  }`}
+                >
+                  {isDownloadingServer ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Downloading ({Math.round(downloadProgress?.percent || 0)}%)...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Install Server</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center flex-wrap gap-2 shrink-0">
-              <button
-                onClick={onBrowseFolder}
-                className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-neutral-200 text-xs font-medium transition-colors flex items-center space-x-1.5"
-              >
-                <Folder className="w-3.5 h-3.5 text-orange-400" />
-                <span>Choose Folder</span>
-              </button>
-              <button
-                onClick={onAutoDetect}
-                className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-neutral-200 text-xs font-medium transition-colors flex items-center space-x-1.5"
-              >
-                <Compass className="w-3.5 h-3.5 text-orange-400" />
-                <span>Auto-Detect</span>
-              </button>
-              <button
-                onClick={() => onNavigate('settings')}
-                className="px-3.5 py-1.5 rounded-lg bg-[#ce422b] hover:bg-[#b03420] text-white text-xs font-semibold shadow-sm transition-colors flex items-center space-x-1.5"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Install Server</span>
-              </button>
-            </div>
+            {/* Live Progress Bar when downloading */}
+            {(isDownloadingServer || (downloadProgress && downloadProgress.percent < 100)) && (
+              <div className="mt-2 pt-2 border-t border-white/[0.06] space-y-1.5">
+                <div className="flex justify-between items-center text-[11px] font-mono">
+                  <span className="text-amber-300 truncate max-w-md">
+                    {downloadProgress?.raw_message || 'Downloading dedicated server content...'}
+                  </span>
+                  <span className="text-amber-400 font-bold ml-2 shrink-0">
+                    {downloadProgress ? `${downloadProgress.percent.toFixed(1)}%` : '0.0%'}
+                  </span>
+                </div>
+                <div className="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/[0.06]">
+                  <div
+                    className="bg-gradient-to-r from-amber-500 via-orange-500 to-[#ce422b] h-full rounded-full transition-all duration-200"
+                    style={{ width: `${Math.max(2, Math.min(100, downloadProgress?.percent || 0))}%` }}
+                  />
+                </div>
+                {downloadProgress && downloadProgress.total_bytes > 0 && (
+                  <div className="flex justify-between text-[10px] text-neutral-400 font-mono">
+                    <span>
+                      {(downloadProgress.current_bytes / (1024 * 1024)).toFixed(1)} MB / {(downloadProgress.total_bytes / (1024 * 1024)).toFixed(1)} MB
+                    </span>
+                    <span>AppID 258550 (Rust Dedicated Server)</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -961,7 +961,7 @@ dependencies = [
 
 [[package]]
 name = "epic-rust-server-launcher"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "futures-util",
  "serde",
@@ -978,7 +978,7 @@ dependencies = [
 
 [[package]]
 name = "epic-rust-server-launcher-ui"
-version = "0.1.0"
+version = "1.0.1"
 dependencies = [
  "epic-rust-server-launcher",
  "rfd",

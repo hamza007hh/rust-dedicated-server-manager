@@ -25,6 +25,7 @@ out_rel.txt
 # (These contain personal server passwords, SteamIDs, and local directory paths)
 launcher_preferences.json
 launcher_profiles.json
+launcher_config.json
 /src-tauri/launcher_preferences.json
 /src-tauri/launcher_profiles.json
 /src-tauri/launcher_config.json

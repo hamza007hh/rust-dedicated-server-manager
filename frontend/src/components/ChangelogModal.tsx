@@ -26,12 +26,41 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({ isOpen, onClose 
 
         {/* Scrollable Changelog List */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6 text-xs leading-relaxed">
-          {/* v1.0.0 CURRENT */}
+          {/* v1.0.1 CURRENT */}
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-orange-500 font-bold font-mono text-sm">v1.0.0</span>
-              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
+              <span className="text-orange-500 font-bold font-mono text-sm">v1.0.1</span>
+              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
                 CURRENT
+              </span>
+            </div>
+
+            <ul className="mt-2.5 space-y-2 text-neutral-300 pl-1">
+              <li className="flex items-start space-x-2">
+                <span className="text-neutral-500 select-none">•</span>
+                <span>Automatic GitHub release check on startup with in-app updater and one-click restart.</span>
+              </li>
+              <li className="flex items-start space-x-2">
+                <span className="text-neutral-500 select-none">•</span>
+                <span>Clean first-launch experience: users start fresh with no pre-created server.</span>
+              </li>
+              <li className="flex items-start space-x-2">
+                <span className="text-neutral-500 select-none">•</span>
+                <span>In-place Rust server installation on Dashboard with live progress indicator that never pauses on tab switch.</span>
+              </li>
+              <li className="flex items-start space-x-2">
+                <span className="text-neutral-500 select-none">•</span>
+                <span>Smooth window dragging enabled across the entire header bar.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* v1.0.0 */}
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="text-neutral-400 font-bold font-mono text-sm">v1.0.0</span>
+              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400">
+                INITIAL RELEASE
               </span>
             </div>
 

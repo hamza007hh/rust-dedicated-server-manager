@@ -1235,8 +1235,22 @@ async fn get_steamcmd_server_status(state: State<'_, AppState>) -> Result<SteamC
 }
 
 #[tauri::command]
-async fn run_steamcmd_install_or_update(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<ValidatedInstallation, String> {
-    let cfg = state.config.lock().await.clone();
+async fn run_steamcmd_install_or_update(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    target_path: Option<String>,
+) -> Result<ValidatedInstallation, String> {
+    let mut cfg = state.config.lock().await.clone();
+    if let Some(ref tp) = target_path {
+        if !tp.trim().is_empty() {
+            let p = PathBuf::from(tp.trim());
+            cfg.install_path = p.clone();
+            let mut cur = state.config.lock().await;
+            cur.install_path = p;
+            let _ = cur.save_to_file(ServerConfig::DEFAULT_CONFIG_FILE);
+            let _ = ProfileManager::update_active_config(&cur);
+        }
+    }
     let installer = ServerInstaller::from_config(&cfg);
     let mut progress_rx = installer.subscribe_progress();
     let app_handle = app.clone();
@@ -1603,6 +1617,207 @@ fn app_window_close(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AppUpdateInfo {
+    pub has_update: bool,
+    pub current_version: String,
+    pub latest_version: String,
+    pub release_name: String,
+    pub release_notes: String,
+    pub published_at: String,
+    pub download_url: String,
+    pub html_url: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GitHubAsset {
+    name: String,
+    browser_download_url: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    name: Option<String>,
+    body: Option<String>,
+    published_at: Option<String>,
+    html_url: Option<String>,
+    assets: Option<Vec<GitHubAsset>>,
+}
+
+fn parse_semver_tuple(v: &str) -> (u32, u32, u32) {
+    let clean = v.trim().trim_start_matches('v');
+    let mut parts = clean.split('.').filter_map(|s| s.parse::<u32>().ok());
+    (
+        parts.next().unwrap_or(0),
+        parts.next().unwrap_or(0),
+        parts.next().unwrap_or(0),
+    )
+}
+
+#[tauri::command]
+async fn check_app_update(app: tauri::AppHandle) -> Result<AppUpdateInfo, String> {
+    let current_version = app.package_info().version.to_string();
+
+    let mut check_cmd = tokio::process::Command::new("curl.exe");
+    check_cmd.args(&[
+        "-s",
+        "-L",
+        "-H",
+        "User-Agent: EpicRustLauncher",
+        "https://api.github.com/repos/hamza007hh/Epic-Rust-Launcher/releases/latest",
+    ]);
+    #[cfg(windows)]
+    check_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: completely silent in background
+
+    let output = check_cmd
+        .output()
+        .await
+        .map_err(|e| format!("Failed to check updates: {}", e))?;
+
+    if !output.status.success() {
+        return Err("Could not reach GitHub Releases server".to_string());
+    }
+
+    let json_text = String::from_utf8_lossy(&output.stdout);
+    if json_text.contains("\"message\":") && json_text.contains("Not Found") {
+        return Ok(AppUpdateInfo {
+            has_update: false,
+            current_version,
+            latest_version: "1.0.0".to_string(),
+            release_name: String::new(),
+            release_notes: String::new(),
+            published_at: String::new(),
+            download_url: String::new(),
+            html_url: String::new(),
+        });
+    }
+
+    let release: GitHubRelease = serde_json::from_str(&json_text)
+        .map_err(|e| format!("Failed to parse release information: {}", e))?;
+
+    let latest_version = release.tag_name.trim().to_string();
+    let current_sem = parse_semver_tuple(&current_version);
+    let latest_sem = parse_semver_tuple(&latest_version);
+
+    let has_update = latest_sem > current_sem;
+
+    let mut download_url = String::new();
+    if let Some(assets) = release.assets {
+        if let Some(exe_asset) = assets.iter().find(|a| a.name.eq_ignore_ascii_case("EpicRust.exe") || a.name.to_lowercase().ends_with(".exe")) {
+            download_url = exe_asset.browser_download_url.clone();
+        } else if let Some(zip_asset) = assets.iter().find(|a| a.name.to_lowercase().ends_with(".zip")) {
+            download_url = zip_asset.browser_download_url.clone();
+        }
+    }
+
+    Ok(AppUpdateInfo {
+        has_update,
+        current_version,
+        latest_version,
+        release_name: release.name.unwrap_or_else(|| release.tag_name.clone()),
+        release_notes: release.body.unwrap_or_default(),
+        published_at: release.published_at.unwrap_or_default(),
+        download_url,
+        html_url: release.html_url.unwrap_or_default(),
+    })
+}
+
+#[tauri::command]
+async fn apply_app_update(app: tauri::AppHandle, download_url: String) -> Result<(), String> {
+    if download_url.trim().is_empty() {
+        return Err("Download URL is empty".to_string());
+    }
+
+    let current_exe = std::env::current_exe().map_err(|e| format!("Failed to resolve current application path: {}", e))?;
+    let exe_dir = current_exe.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| std::path::PathBuf::from("."));
+    let is_zip = download_url.to_lowercase().ends_with(".zip");
+
+    let temp_target = if is_zip {
+        current_exe.with_extension("update.zip")
+    } else {
+        current_exe.with_extension("download")
+    };
+    let old_backup = current_exe.with_extension("old");
+
+    let _ = std::fs::remove_file(&temp_target);
+    let _ = std::fs::remove_file(&old_backup);
+
+    let mut dl_cmd = tokio::process::Command::new("curl.exe");
+    dl_cmd.args(&[
+        "-L",
+        "-s",
+        "-o",
+        &temp_target.to_string_lossy(),
+        &download_url,
+    ]);
+    #[cfg(windows)]
+    dl_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: completely silent in background
+
+    let status = dl_cmd
+        .status()
+        .await
+        .map_err(|e| format!("Failed to download update package: {}", e))?;
+
+    if !status.success() || !temp_target.is_file() {
+        let _ = std::fs::remove_file(&temp_target);
+        return Err("Download failed or connection was interrupted".to_string());
+    }
+
+    let meta = std::fs::metadata(&temp_target).map_err(|e| e.to_string())?;
+    if meta.len() < 100_000 {
+        let _ = std::fs::remove_file(&temp_target);
+        return Err("Downloaded update file is too small or corrupt".to_string());
+    }
+
+    // Windows atomic swap: rename currently executing exe to .old
+    std::fs::rename(&current_exe, &old_backup)
+        .map_err(|e| format!("Could not move current executable: {}", e))?;
+
+    if is_zip {
+        // Extract archive to exe_dir using built-in tar.exe without console window
+        let mut extract_cmd = tokio::process::Command::new("tar.exe");
+        extract_cmd.args(&[
+            "-xf",
+            &temp_target.to_string_lossy(),
+            "-C",
+            &exe_dir.to_string_lossy(),
+        ]);
+        #[cfg(windows)]
+        extract_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW: completely silent in background
+
+        let extract_status = extract_cmd.status().await;
+        let _ = std::fs::remove_file(&temp_target);
+        if extract_status.is_err() || !extract_status.unwrap().success() || !current_exe.is_file() {
+            // Restore backup
+            let _ = std::fs::rename(&old_backup, &current_exe);
+            return Err("Failed to extract update package".to_string());
+        }
+    } else {
+        // Move downloaded binary to current_exe
+        if let Err(e) = std::fs::rename(&temp_target, &current_exe) {
+            let _ = std::fs::rename(&old_backup, &current_exe);
+            return Err(format!("Failed to install update: {}", e));
+        }
+    }
+
+    // Spawn new version with correct working directory (and no flash)
+    let mut restart_cmd = std::process::Command::new(&current_exe);
+    restart_cmd.current_dir(&exe_dir);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        restart_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    }
+    let _ = restart_cmd
+        .spawn()
+        .map_err(|e| format!("Failed to restart updated application: {}", e))?;
+
+    // Exit old app process cleanly
+    app.exit(0);
+    Ok(())
+}
+
 #[tauri::command]
 fn app_window_start_dragging(app: tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
@@ -1704,7 +1919,16 @@ fn main() {
     log_diag("TAURI_BUILDER_BEGIN", "Initializing ServerConfig, ProcessManager, and Tauri Builder");
 
     log_diag("CONFIG_BEGIN", "Loading server config");
-    let initial_config = ServerConfig::load_or_default(ServerConfig::DEFAULT_CONFIG_FILE);
+    let initial_config = {
+        let profiles_data = ProfileManager::load_or_init();
+        if let Some(active) = profiles_data.profiles.iter().find(|p| p.id == profiles_data.active_profile_id) {
+            active.config.clone()
+        } else if let Some(first) = profiles_data.profiles.first() {
+            first.config.clone()
+        } else {
+            ServerConfig::load_or_default(ServerConfig::DEFAULT_CONFIG_FILE)
+        }
+    };
     log_diag("CONFIG_DONE", "Loaded server config");
 
     log_diag("PROCESS_MGR_BEGIN", "Initializing ServerProcessManager");
@@ -1746,6 +1970,18 @@ fn main() {
         .setup(move |app| {
             log_diag("TAURI_SETUP_BEGIN", "Setup closure invoked");
             let handle = app.handle().clone();
+
+            // Clean up any temporary files from previous launcher update
+            if let Ok(current_exe) = std::env::current_exe() {
+                let old_file = current_exe.with_extension("old");
+                if old_file.exists() {
+                    let _ = std::fs::remove_file(old_file);
+                }
+                let dl_file = current_exe.with_extension("download");
+                if dl_file.exists() {
+                    let _ = std::fs::remove_file(dl_file);
+                }
+            }
 
             // Background task: Stream real-time logs via "log-received"
             let proc_logs = proc_for_setup.clone();
@@ -2058,7 +2294,9 @@ fn main() {
             app_window_minimize,
             app_window_toggle_maximize,
             app_window_close,
-            app_window_start_dragging
+            app_window_start_dragging,
+            check_app_update,
+            apply_app_update
         ]);
     log_diag("TAURI_RUN_BEGIN", "Executing builder.run(...)");
     let result = builder.run(tauri::generate_context!());

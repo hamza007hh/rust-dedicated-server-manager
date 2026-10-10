@@ -18,6 +18,7 @@ import {
   BookOpen,
   Trash2,
   HardDrive,
+  Sparkles,
 } from 'lucide-react';
 import {
   ServerConfig,
@@ -26,15 +27,29 @@ import {
   DiscoveredInstallation,
   LauncherPreferences,
   StorageUsageInfo,
+  AppUpdateInfo,
 } from '../types/server';
 import { api, events } from '../services/api';
 
 interface SettingsPageProps {
   config: ServerConfig;
   onSaveConfig: (updated: ServerConfig) => Promise<void>;
+  isDownloadingServer?: boolean;
+  downloadProgress?: SteamCmdProgress | null;
+  onInstallServer?: (targetPath?: string) => void;
+  onCheckAppUpdate?: () => void;
+  appUpdateInfo?: AppUpdateInfo | null;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ config, onSaveConfig }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({
+  config,
+  onSaveConfig,
+  isDownloadingServer = false,
+  downloadProgress = null,
+  onInstallServer,
+  onCheckAppUpdate,
+  appUpdateInfo,
+}) => {
   // Configuration Paths
   const [installPath, setInstallPath] = useState(config.install_path);
   const [steamcmdPath, setSteamcmdPath] = useState(config.steamcmd_path || '');
@@ -61,12 +76,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ config, onSaveConfig
   // SteamCMD & Installation state
   const [steamStatus, setSteamStatus] = useState<SteamCmdServerStatus | null>(null);
   const [isLoadingSteam, setIsLoadingSteam] = useState(false);
-  const [isRunningSteamCmd, setIsRunningSteamCmd] = useState(false);
+  const [localIsRunningSteamCmd, setLocalIsRunningSteamCmd] = useState(false);
+  const isRunningSteamCmd = isDownloadingServer || localIsRunningSteamCmd;
   const [isValidating, setIsValidating] = useState(false);
   const [isBrowsing, setIsBrowsing] = useState(false);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoveredList, setDiscoveredList] = useState<DiscoveredInstallation[]>([]);
   const [liveProgress, setLiveProgress] = useState<SteamCmdProgress | null>(null);
+  const activeProgress = downloadProgress || liveProgress;
 
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
@@ -310,7 +327,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ config, onSaveConfig
       setStatusMsg({ text: 'Please specify or browse a destination folder first.', type: 'error' });
       return;
     }
-    setIsRunningSteamCmd(true);
+    if (onInstallServer) {
+      onInstallServer(installPath.trim());
+      return;
+    }
+    setLocalIsRunningSteamCmd(true);
     setStatusMsg(null);
     try {
       const res = await api.installOrUpdateRustServer(installPath.trim());
@@ -323,7 +344,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ config, onSaveConfig
     } catch (e: any) {
       setStatusMsg({ text: e?.message || 'SteamCMD installation/update failed', type: 'error' });
     } finally {
-      setIsRunningSteamCmd(false);
+      setLocalIsRunningSteamCmd(false);
     }
   };
 
@@ -537,6 +558,57 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ config, onSaveConfig
             APPS & DATA
           </h3>
           <div className="bg-[#12151c]/90 border border-white/[0.07] rounded-xl overflow-hidden divide-y divide-white/[0.05]">
+            {/* Epic Rust Launcher Updates */}
+            <div className="px-5 py-3.5 flex items-center justify-between hover:bg-white/[0.015] transition-colors">
+              <div className="flex items-center space-x-3.5 min-w-0 pr-4">
+                <div className="p-2 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <h4 className="text-xs font-semibold text-white">Epic Rust Launcher</h4>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-white/10">
+                      v{appUpdateInfo?.current_version || '1.0.0'}
+                    </span>
+                    {appUpdateInfo?.has_update && (
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 animate-pulse">
+                        Update {appUpdateInfo.latest_version}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-neutral-500 mt-0.5">
+                    {appUpdateInfo?.has_update
+                      ? 'A newer version of Epic Rust is available on GitHub!'
+                      : 'You are running the latest version of Epic Rust.'}
+                  </p>
+                </div>
+              </div>
+
+              {onCheckAppUpdate && (
+                <button
+                  type="button"
+                  onClick={onCheckAppUpdate}
+                  className={`px-4 py-1.5 rounded-lg border text-xs font-medium transition-colors shrink-0 flex items-center space-x-1.5 cursor-pointer ${
+                    appUpdateInfo?.has_update
+                      ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 border-orange-500/50 text-white shadow-md shadow-orange-950/40'
+                      : 'bg-white/[0.06] hover:bg-white/[0.12] border-white/[0.08] text-white'
+                  }`}
+                >
+                  {appUpdateInfo?.has_update ? (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Update Now</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Check for updates</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
             {/* Install folder */}
             <div className="px-5 py-3.5 flex items-center justify-between hover:bg-white/[0.015] transition-colors">
               <div className="flex items-center space-x-3.5 min-w-0 pr-4">
@@ -693,19 +765,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ config, onSaveConfig
           </div>
           <div className="bg-[#12151c]/90 border border-white/[0.07] rounded-xl p-5 space-y-4">
             {/* Live SteamCMD Progress Bar */}
-            {liveProgress && (
+            {(activeProgress || isRunningSteamCmd) && (
               <div className="p-4 rounded-xl bg-[#0d0f14] border border-orange-500/40 space-y-2 font-mono text-xs">
                 <div className="flex justify-between items-center text-neutral-300">
                   <span className="font-bold flex items-center space-x-2">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-orange-400" />
-                    <span>{liveProgress.raw_message || liveProgress.stage || 'SteamCMD in progress...'}</span>
+                    <span>{activeProgress?.raw_message || activeProgress?.stage || 'SteamCMD download/update in progress...'}</span>
                   </span>
-                  <span className="text-orange-400 font-bold">{liveProgress.percent.toFixed(1)}%</span>
+                  <span className="text-orange-400 font-bold">{activeProgress ? `${activeProgress.percent.toFixed(1)}%` : 'In Progress'}</span>
                 </div>
                 <div className="w-full bg-white/[0.08] rounded-full h-2 overflow-hidden">
                   <div
                     className="bg-orange-500 h-2 transition-all duration-300 rounded-full"
-                    style={{ width: `${Math.min(100, Math.max(0, liveProgress.percent))}%` }}
+                    style={{ width: `${Math.min(100, Math.max(2, activeProgress?.percent || 5))}%` }}
                   />
                 </div>
               </div>

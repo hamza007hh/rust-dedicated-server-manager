@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
+import { UpdateModal } from './components/UpdateModal';
 import { ChangelogModal } from './components/ChangelogModal';
 import { DonateModal } from './components/DonateModal';
 import { SteamFriendsDock } from './components/SteamFriendsDock';
@@ -20,6 +21,7 @@ import {
   ServerStatus,
   ServerTelemetry,
   SteamCmdServerStatus,
+  SteamCmdProgress,
   NetInfo,
   LogEntry,
   SaveBackupInfo,
@@ -28,6 +30,7 @@ import {
   WipeResult,
   ProfilesData,
   SteamStatus,
+  AppUpdateInfo,
 } from './types/server';
 
 const DEFAULT_CONFIG: ServerConfig = {
@@ -93,6 +96,8 @@ export const App: React.FC = () => {
   });
   const [plugins, setPlugins] = useState<PluginItem[]>([]);
   const [steamStatus, setSteamStatus] = useState<SteamCmdServerStatus | null>(null);
+  const [isDownloadingServer, setIsDownloadingServer] = useState<boolean>(false);
+  const [downloadProgress, setDownloadProgress] = useState<SteamCmdProgress | null>(null);
   const [profilesData, setProfilesData] = useState<ProfilesData>({
     active_profile_id: '',
     profiles: [],
@@ -101,9 +106,47 @@ export const App: React.FC = () => {
   const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
   const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [showDonateModal, setShowDonateModal] = useState(false);
+  const [appUpdateInfo, setAppUpdateInfo] = useState<AppUpdateInfo | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [errorToast, setErrorToast] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  // Auto-check GitHub for launcher updates on launch
+  useEffect(() => {
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        const info = await api.checkAppUpdate();
+        if (!isMounted) return;
+        setAppUpdateInfo(info);
+        if (info && info.has_update) {
+          setShowUpdateModal(true);
+        }
+      } catch (e) {
+        console.warn('Auto update check error:', e);
+      }
+    }, 2000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const handleManualCheckUpdate = async () => {
+    try {
+      const info = await api.checkAppUpdate();
+      setAppUpdateInfo(info);
+      if (info && info.has_update) {
+        setShowUpdateModal(true);
+      } else {
+        showSuccess(`Epic Rust is up to date! (v${info.current_version})`);
+      }
+    } catch (e: any) {
+      showError(e?.message || 'Failed to check for launcher updates');
+    }
+  };
 
   const unlistenFns = useRef<(() => void)[]>([]);
 
@@ -218,6 +261,24 @@ export const App: React.FC = () => {
         showError(`Restart Countdown Alert: ${tag.toUpperCase()}`);
       });
       unlistenFns.current.push(u6);
+
+      const u7 = await events.onSteamCmdProgress((prog) => {
+        if (!mounted) return;
+        setDownloadProgress(prog);
+        if (prog.percent >= 100 || prog.stage === 'Complete') {
+          setIsDownloadingServer(false);
+          api.getSteamCmdStatus().then(setSteamStatus).catch(() => {});
+          setTimeout(() => {
+            if (mounted) setDownloadProgress(null);
+          }, 4000);
+        } else if (prog.stage === 'Failed') {
+          setIsDownloadingServer(false);
+          showError(`SteamCMD Error: ${prog.raw_message || 'Installation failed'}`);
+        } else {
+          setIsDownloadingServer(true);
+        }
+      });
+      unlistenFns.current.push(u7);
     };
 
     setupListeners();
@@ -251,7 +312,36 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [status, telemetry, netInfo]);
 
-  // Server lifecycle handlers
+  // Server installation & lifecycle handlers
+  const handleInstallServer = useCallback(async (targetPath?: string) => {
+    const installTarget = (targetPath || config.install_path || '').trim();
+    if (!installTarget) {
+      showError('Please configure an installation folder first.');
+      return;
+    }
+    setIsDownloadingServer(true);
+    setDownloadProgress({
+      stage: 'Initializing',
+      percent: 0,
+      current_bytes: 0,
+      total_bytes: 0,
+      raw_message: 'Starting SteamCMD and preparing installation directory...',
+    });
+    try {
+      showSuccess(`Starting Rust Dedicated Server download to "${installTarget}"...`);
+      const res = await api.installOrUpdateRustServer(installTarget);
+      showSuccess(`Rust Dedicated Server installed successfully! (Build ID: ${res?.build_id || 'Latest'})`);
+      const updatedStatus = await api.getSteamCmdStatus();
+      setSteamStatus(updatedStatus);
+      const updatedCfg = await api.getConfig();
+      setConfig(updatedCfg);
+    } catch (e: any) {
+      showError(e?.message || 'SteamCMD download/update failed');
+    } finally {
+      setIsDownloadingServer(false);
+    }
+  }, [config.install_path]);
+
   const handleStart = async () => {
     if (steamStatus && (!steamStatus.is_rust_installed || !steamStatus.is_valid)) {
       showError(`Cannot start: RustDedicated.exe not found at '${config.install_path}'. Choose a folder or install server first.`);
@@ -573,6 +663,10 @@ export const App: React.FC = () => {
         onOpenDonate={() => setShowDonateModal(true)}
         onOpenChangelog={() => setShowChangelogModal(true)}
         onNavigate={setCurrentPage}
+        isDownloadingServer={isDownloadingServer}
+        downloadProgress={downloadProgress}
+        updateAvailable={!!appUpdateInfo?.has_update}
+        onOpenUpdate={() => setShowUpdateModal(true)}
       />
 
       {/* Main App Body */}
@@ -616,6 +710,9 @@ export const App: React.FC = () => {
                 steamPersonaName={steamStatusSummary?.persona_name}
                 onRenameProfile={handleRenameProfile}
                 onDeleteProfile={handleDeleteProfile}
+                isDownloadingServer={isDownloadingServer}
+                downloadProgress={downloadProgress}
+                onInstallServer={handleInstallServer}
               />
             </ErrorBoundary>
           )}
@@ -685,6 +782,11 @@ export const App: React.FC = () => {
             <SettingsPage
               config={config}
               onSaveConfig={handleSaveConfig}
+              isDownloadingServer={isDownloadingServer}
+              downloadProgress={downloadProgress}
+              onInstallServer={handleInstallServer}
+              onCheckAppUpdate={handleManualCheckUpdate}
+              appUpdateInfo={appUpdateInfo}
             />
           )}
         </main>
@@ -700,6 +802,13 @@ export const App: React.FC = () => {
         onStatusLoaded={setSteamStatusSummary}
       />
     </div>
+
+    {/* Real Auto-Updater Modal */}
+    <UpdateModal
+      isOpen={showUpdateModal}
+      updateInfo={appUpdateInfo}
+      onClose={() => setShowUpdateModal(false)}
+    />
 
     {/* Version & Release Changelog Modal */}
     <ChangelogModal

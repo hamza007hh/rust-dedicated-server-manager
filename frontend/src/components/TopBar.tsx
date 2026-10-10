@@ -5,17 +5,41 @@ import {
   Minus,
   Square,
   X,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { api } from '../services/api';
 import { RustLogo } from './RustLogo';
+import { SteamCmdProgress } from '../types/server';
 
 interface TopBarProps {
   onOpenDonate: () => void;
   onOpenChangelog: () => void;
   onNavigate?: (page: string) => void;
+  isDownloadingServer?: boolean;
+  downloadProgress?: SteamCmdProgress | null;
+  updateAvailable?: boolean;
+  onOpenUpdate?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ onOpenDonate, onOpenChangelog, onNavigate: _onNavigate }) => {
+const getAppWindow = () => {
+  try {
+    return getCurrentWindow();
+  } catch {
+    return null;
+  }
+};
+
+export const TopBar: React.FC<TopBarProps> = ({
+  onOpenDonate,
+  onOpenChangelog,
+  onNavigate,
+  isDownloadingServer = false,
+  downloadProgress = null,
+  updateAvailable = false,
+  onOpenUpdate,
+}) => {
   const handleOpenDiscord = () => {
     try {
       window.open('https://discord.gg/rust', '_blank');
@@ -24,80 +48,158 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenDonate, onOpenChangelog, o
     }
   };
 
-  const handleMinimize = async (e: React.MouseEvent) => {
+  const handleMinimize = (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().minimize();
+      const win = getAppWindow();
+      if (win) {
+        win.minimize();
+      } else {
+        api.windowMinimize();
+      }
     } catch {
-      await api.windowMinimize();
+      api.windowMinimize();
     }
   };
 
-  const handleToggleMaximize = async (e: React.MouseEvent) => {
+  const handleToggleMaximize = (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().toggleMaximize();
+      const win = getAppWindow();
+      if (win) {
+        win.toggleMaximize();
+      } else {
+        api.windowToggleMaximize();
+      }
     } catch {
-      await api.windowToggleMaximize();
+      api.windowToggleMaximize();
     }
   };
 
-  const handleClose = async (e: React.MouseEvent) => {
+  const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().close();
+      const win = getAppWindow();
+      if (win) {
+        win.close();
+      }
     } catch {
       // ignore
     }
-    await api.windowClose();
+    api.windowClose();
   };
 
-  const handleMouseDown = async (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Left click only
     if (e.button === 0) {
       const target = e.target as HTMLElement;
-      if (target.closest('[data-no-drag]')) {
+      if (target.closest('[data-no-drag]') || target.closest('button') || target.closest('a')) {
         return;
       }
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        await getCurrentWindow().startDragging();
+        const win = getAppWindow();
+        if (win) {
+          win.startDragging();
+        } else {
+          api.windowStartDragging();
+        }
       } catch {
-        await api.windowStartDragging();
+        api.windowStartDragging();
       }
     }
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-no-drag]') || target.closest('button') || target.closest('a')) {
+      return;
+    }
+    handleToggleMaximize(e);
   };
 
   return (
     <header
       data-tauri-drag-region
       onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
+      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       className="h-10 bg-[#0c0e13] border-b border-white/[0.06] flex items-center justify-between pl-3 pr-0 select-none z-30 shrink-0 w-full cursor-default"
     >
-      {/* Left: Custom Rust Emblem & Brand Typography (Universal drag area) */}
+      {/* Left: Custom Rust Emblem & Brand Typography */}
       <div
         data-tauri-drag-region
-        className="flex items-center space-x-2.5 px-1 py-1 select-none cursor-default pointer-events-none"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        className="flex items-center space-x-2.5 px-1 py-1 select-none cursor-default"
       >
-        <RustLogo size="xs" />
+        <div
+          data-tauri-drag-region
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+          className="pointer-events-none flex items-center"
+        >
+          <RustLogo size="xs" />
+        </div>
 
-        <div className="flex items-center space-x-2">
-          <span className="text-xs font-black tracking-widest text-white font-sans uppercase">
+        <div
+          data-tauri-drag-region
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+          className="flex items-center space-x-2 pointer-events-none"
+        >
+          <span
+            data-tauri-drag-region
+            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+            className="text-xs font-black tracking-widest text-white font-sans uppercase"
+          >
             EPIC RUST
           </span>
         </div>
       </div>
 
-      {/* Middle Drag Area */}
-      <div data-tauri-drag-region className="flex-1 h-full cursor-default" />
+      {/* Middle Drag Area + Active Background Download Indicator */}
+      <div
+        data-tauri-drag-region
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        className="flex-1 h-full cursor-default flex items-center justify-center px-4"
+      >
+        {(isDownloadingServer || downloadProgress) && (
+          <div
+            data-no-drag
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            onClick={() => onNavigate?.('dashboard')}
+            className="cursor-pointer flex items-center space-x-2 px-3 py-1 bg-[#191512] hover:bg-[#251e18] border border-amber-500/40 rounded-full text-[11px] font-mono text-amber-300 shadow-sm transition-all"
+            title="Click to view live download on Dashboard"
+          >
+            <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
+            <span className="font-semibold text-neutral-200">Downloading Server:</span>
+            <span className="text-amber-400 font-bold">{Math.round(downloadProgress?.percent || 0)}%</span>
+            <span className="text-neutral-400 text-[10px] hidden sm:inline">({downloadProgress?.stage || 'SteamCMD'})</span>
+          </div>
+        )}
+      </div>
 
       {/* Right: Community buttons & Prominent Window Controls */}
-      <div className="flex items-center h-full pointer-events-auto">
+      <div
+        data-tauri-drag-region
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        className="flex items-center h-full"
+      >
+        {/* Update Available Badge */}
+        {updateAvailable && (
+          <button
+            data-no-drag
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            onClick={onOpenUpdate}
+            className="flex items-center space-x-1.5 px-2.5 py-1 mr-2 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold animate-pulse transition-all cursor-pointer shadow-sm shadow-orange-950/40"
+            title="A new launcher update is available! Click to update."
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[11px] font-bold">Update Available</span>
+          </button>
+        )}
+
         {/* Discord Button */}
         <button
           data-no-drag
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={handleOpenDiscord}
           className="p-1.5 mx-0.5 rounded-md text-neutral-400 hover:text-[#5865F2] hover:bg-white/[0.05] transition-all flex items-center space-x-1 group cursor-pointer"
           title="Join Discord Community"
@@ -113,6 +215,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenDonate, onOpenChangelog, o
         {/* Donate Button */}
         <button
           data-no-drag
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={onOpenDonate}
           className="p-1.5 mx-0.5 rounded-md text-neutral-400 hover:text-orange-400 hover:bg-white/[0.05] transition-all flex items-center space-x-1 group cursor-pointer"
           title="Support Creator"
@@ -123,6 +226,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenDonate, onOpenChangelog, o
         {/* Changelog Button */}
         <button
           data-no-drag
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={onOpenChangelog}
           className="p-1.5 mx-0.5 rounded-md text-neutral-400 hover:text-white hover:bg-white/[0.05] transition-all flex items-center space-x-1 group cursor-pointer"
           title="Changelog & Version"
@@ -130,11 +234,16 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenDonate, onOpenChangelog, o
           <FileText className="w-3.5 h-3.5 transition-colors" />
         </button>
 
-        <div className="h-3.5 w-px bg-white/[0.08] mx-2" />
+        <div
+          data-tauri-drag-region
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+          className="h-3.5 w-px bg-white/[0.08] mx-2"
+        />
 
         {/* Minimize Button */}
         <button
           data-no-drag
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={handleMinimize}
           className="w-11 h-10 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
           title="Minimize"
@@ -146,6 +255,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenDonate, onOpenChangelog, o
         {/* Maximize / Restore Button */}
         <button
           data-no-drag
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={handleToggleMaximize}
           className="w-11 h-10 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
           title="Maximize or Restore"
@@ -157,6 +267,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenDonate, onOpenChangelog, o
         {/* Exit Button */}
         <button
           data-no-drag
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={handleClose}
           className="w-12 h-10 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-[#c93b2b] transition-colors group cursor-pointer"
           title="Exit Application"

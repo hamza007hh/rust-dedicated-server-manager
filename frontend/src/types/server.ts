@@ -300,3 +300,15 @@ export interface StorageUsageInfo {
   backups_size_mb: number;
 }
 
+export interface AppUpdateInfo {
+  has_update: boolean;
+  current_version: string;
+  latest_version: string;
+  release_name: string;
+  release_notes: string;
+  published_at: string;
+  download_url: string;
+  html_url?: string;
+  release_url?: string;
+}
+

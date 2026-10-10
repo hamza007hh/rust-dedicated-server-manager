@@ -20,21 +20,9 @@ pub struct ProfilesData {
 
 impl Default for ProfilesData {
     fn default() -> Self {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
-
-        let default_config = ServerConfig::load_or_default(ServerConfig::DEFAULT_CONFIG_FILE);
-
         Self {
-            active_profile_id: "default".to_string(),
-            profiles: vec![ServerProfile {
-                id: "default".to_string(),
-                name: "Main Server".to_string(),
-                created_at_millis: now,
-                config: default_config,
-            }],
+            active_profile_id: String::new(),
+            profiles: Vec::new(),
         }
     }
 }
@@ -91,7 +79,7 @@ impl ProfileManager {
             config: config.clone(),
         };
 
-        if set_active {
+        if set_active || data.active_profile_id.is_empty() {
             data.active_profile_id = id;
             let _ = config.save_to_file(ServerConfig::DEFAULT_CONFIG_FILE);
         }
@@ -137,8 +125,13 @@ impl ProfileManager {
             id: id.clone(),
             name: clean_name.to_string(),
             created_at_millis: now,
-            config: new_cfg,
+            config: new_cfg.clone(),
         };
+
+        if data.active_profile_id.is_empty() {
+            data.active_profile_id = id.clone();
+            let _ = new_cfg.save_to_file(ServerConfig::DEFAULT_CONFIG_FILE);
+        }
 
         data.profiles.push(new_profile.clone());
         Self::save(&data)?;

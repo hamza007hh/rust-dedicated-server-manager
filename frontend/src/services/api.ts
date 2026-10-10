@@ -30,6 +30,7 @@ import {
   InviteAllResult,
   LauncherPreferences,
   StorageUsageInfo,
+  AppUpdateInfo,
 } from '../types/server';
 
 export const isTauri = () => {
@@ -589,6 +590,54 @@ export const api = {
 
   async saveLauncherPreferences(prefs: LauncherPreferences): Promise<void> {
     return safeInvoke<void>('save_launcher_preferences', { prefs });
+  },
+
+  async checkAppUpdate(): Promise<AppUpdateInfo> {
+    if (isTauri()) {
+      return safeInvoke<AppUpdateInfo>('check_app_update');
+    }
+    try {
+      const res = await fetch('https://api.github.com/repos/hamza007hh/Epic-Rust-Launcher/releases/latest', {
+        headers: { Accept: 'application/vnd.github.v3+json' },
+      });
+      if (!res.ok) throw new Error('Could not fetch release');
+      const data = await res.json();
+      const latestTag = (data.tag_name || '1.0.0').trim();
+      const currentVer = '1.0.0';
+      const cleanLatest = latestTag.replace(/^v/, '');
+      const cleanCurrent = currentVer.replace(/^v/, '');
+      const isNewer = cleanLatest.localeCompare(cleanCurrent, undefined, { numeric: true, sensitivity: 'base' }) > 0;
+      let dlUrl = '';
+      if (Array.isArray(data.assets)) {
+        const exe = data.assets.find((a: any) => a.name.toLowerCase() === 'epicrust.exe');
+        if (exe) dlUrl = exe.browser_download_url;
+      }
+      return {
+        has_update: isNewer,
+        current_version: currentVer,
+        latest_version: latestTag,
+        release_name: data.name || latestTag,
+        release_notes: data.body || '',
+        published_at: data.published_at || '',
+        download_url: dlUrl,
+        release_url: data.html_url || 'https://github.com/hamza007hh/Epic-Rust-Launcher/releases/latest',
+      };
+    } catch {
+      return {
+        has_update: false,
+        current_version: '1.0.0',
+        latest_version: '1.0.0',
+        release_name: 'Epic Rust v1.0.0',
+        release_notes: '',
+        published_at: '',
+        download_url: '',
+        release_url: '',
+      };
+    }
+  },
+
+  async applyAppUpdate(downloadUrl: string): Promise<void> {
+    return safeInvoke<void>('apply_app_update', { download_url: downloadUrl });
   },
 };
 
