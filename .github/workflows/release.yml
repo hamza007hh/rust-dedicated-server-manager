@@ -53,7 +53,7 @@ jobs:
           if (Test-Path WebView2Loader.dll) {
             Copy-Item WebView2Loader.dll release-dist\WebView2Loader.dll
           }
-          tar.exe -a -c -f EpicRust-Windows-x64.zip -C release-dist .
+          tar.exe -a -c -f EpicRust-Windows-x64.zip -C release-dist EpicRust.exe steam_api64.dll WebView2Loader.dll
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
